@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowRight, ArrowUpRight, Clock3, Instagram, MapPin, Menu as MenuIcon, Phone, X } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ArrowDown, ArrowRight, ArrowUpRight, Clock3, Instagram, MapPin, Menu as MenuIcon, Minus, Phone, Plus, ShoppingBag, X } from 'lucide-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -10,16 +10,83 @@ import { menuCategories } from './data/menu';
 
 const queryClient = new QueryClient();
 const logo = '/cafes-de-carla-logo.jpg';
+const menuItemsById = new Map(menuCategories.flatMap((category) => category.items).map((item) => [item.id, item] as const));
 
-function PreviewNote({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <span className={`preview-note ${className}`} data-testid="preview-disclosure">{children}</span>;
+function priceInCents(price?: string) {
+  if (!price) return null;
+  const amount = Number(price.replace('€', '').trim().replace(',', '.'));
+  return Number.isFinite(amount) ? Math.round(amount * 100) : null;
+}
+
+function formatPrice(cents: number) {
+  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(cents / 100);
 }
 
 function Home() {
   const [activeCategory, setActiveCategory] = useState('featured');
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [cart, setCart] = useState<Record<string, number>>({});
   const selected = menuCategories.find((category) => category.id === activeCategory) ?? menuCategories[0];
+  const cartTriggerRef = useRef<HTMLButtonElement>(null);
+  const cartCloseRef = useRef<HTMLButtonElement>(null);
+  const cartDrawerRef = useRef<HTMLElement>(null);
+  const cartLines = Object.entries(cart).flatMap(([id, quantity]) => {
+    const item = menuItemsById.get(id);
+    return item ? [{ item, quantity }] : [];
+  });
+  const cartCount = cartLines.reduce((total, line) => total + line.quantity, 0);
+  const cartSubtotal = cartLines.reduce((total, line) => total + (priceInCents(line.item.price) ?? 0) * line.quantity, 0);
+  const hasUnpricedItems = cartLines.some((line) => priceInCents(line.item.price) === null);
   const closeNav = () => setMobileOpen(false);
+
+  useEffect(() => {
+    if (!cartOpen) return;
+
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    cartCloseRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setCartOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const focusable = cartDrawerRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
+  }, [cartOpen]);
+
+  const changeCartQuantity = (itemId: string, adjustment: number) => {
+    setCart((current) => {
+      const next = { ...current };
+      const quantity = (next[itemId] ?? 0) + adjustment;
+      if (quantity <= 0) delete next[itemId];
+      else next[itemId] = quantity;
+      return next;
+    });
+  };
 
   return (
     <div className="site-shell grain min-h-[100dvh]">
@@ -38,11 +105,17 @@ function Home() {
             <a href="#visitanos" className="nav-link" onClick={closeNav} data-testid="link-nav-visit">Visítanos</a>
             <a href="#contacto" className="nav-contact" onClick={closeNav} data-testid="link-nav-contact">Hablemos <ArrowUpRight size={14} aria-hidden="true" /></a>
           </nav>
+          <button ref={cartTriggerRef} className="cart-trigger focus-ring" type="button" aria-label={`Abrir carrito, ${cartCount} artículos`} aria-haspopup="dialog" aria-expanded={cartOpen} onClick={() => setCartOpen(true)} data-testid="button-open-cart">
+            <ShoppingBag size={17} aria-hidden="true" /><span>Carrito</span><span className="cart-count" data-testid="text-cart-count">{cartCount}</span>
+          </button>
           <button className="mobile-toggle focus-ring" type="button" aria-label={mobileOpen ? 'Cerrar navegación' : 'Abrir navegación'} aria-expanded={mobileOpen} onClick={() => setMobileOpen((open) => !open)} data-testid="button-mobile-navigation">
             {mobileOpen ? <X size={21} /> : <MenuIcon size={21} />}
           </button>
         </div>
       </header>
+      <span className="sr-only" role="status" aria-live="polite" data-testid="status-cart-count">
+        {cartCount === 1 ? '1 artículo en el carrito' : `${cartCount} artículos en el carrito`}
+      </span>
 
       <main>
         <section id="inicio" className="hero section-wrap" aria-labelledby="hero-title">
@@ -115,9 +188,14 @@ function Home() {
                         <h4>{item.name}</h4>
                         {item.description && <p>{item.description}</p>}
                       </div>
-                      <span className={`menu-item-price ${item.price ? '' : 'price-pending'}`} data-testid={`price-menu-${item.id}`}>
-                        {item.price ?? 'Precio por confirmar'}
-                      </span>
+                      <div className="menu-item-actions">
+                        <span className={`menu-item-price ${item.price ? '' : 'price-pending'}`} data-testid={`price-menu-${item.id}`}>
+                          {item.price ?? 'Precio por confirmar'}
+                        </span>
+                        <button className="add-to-cart focus-ring" type="button" aria-label={`Añadir ${item.name} al carrito`} onClick={() => changeCartQuantity(item.id, 1)} data-testid={`button-add-menu-${item.id}`}>
+                          <Plus size={14} aria-hidden="true" /><span>Añadir</span>
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -182,6 +260,50 @@ function Home() {
         </div>
         <div className="footer-bottom section-wrap"><span>© Cafés de Carla</span><span>PREVISUALIZACIÓN DE PRUEBA · NO PUBLICAR</span><span>Hecho para disfrutar sin prisa.</span></div>
       </footer>
+      {cartOpen && (
+        <>
+          <button className="cart-backdrop" type="button" aria-label="Cerrar carrito" onClick={() => setCartOpen(false)} data-testid="button-close-cart-backdrop" />
+          <aside ref={cartDrawerRef} className="cart-drawer" role="dialog" aria-modal="true" aria-labelledby="cart-title" tabIndex={-1} data-testid="panel-cart">
+            <div className="cart-header">
+              <div><span className="eyebrow">TU SELECCIÓN</span><h2 className="serif" id="cart-title">Tu carrito</h2></div>
+              <button ref={cartCloseRef} className="cart-close focus-ring" type="button" aria-label="Cerrar carrito" onClick={() => setCartOpen(false)} data-testid="button-close-cart"><X size={20} /></button>
+            </div>
+            {cartLines.length === 0 ? (
+              <div className="cart-empty" data-testid="empty-cart">
+                <ShoppingBag size={28} aria-hidden="true" />
+                <p>Tu carrito todavía está vacío.</p>
+                <a className="text-cta focus-ring" href="#carta" onClick={() => setCartOpen(false)} data-testid="link-cart-to-menu">Volver a la carta <ArrowDown size={15} /></a>
+              </div>
+            ) : (
+              <>
+                <ul className="cart-lines" data-testid="list-cart-items">
+                  {cartLines.map(({ item, quantity }) => {
+                    const itemPrice = priceInCents(item.price);
+                    return (
+                      <li className="cart-line" key={item.id} data-testid={`cart-item-${item.id}`}>
+                        <div className="cart-line-main">
+                          <div><h3 data-testid={`cart-name-${item.id}`}>{item.name}</h3><span className={itemPrice === null ? 'cart-price-pending' : 'cart-line-price'} data-testid={`cart-price-${item.id}`}>{itemPrice === null ? 'Precio por confirmar' : formatPrice(itemPrice * quantity)}</span></div>
+                          <div className="cart-quantity-controls" role="group" aria-label={`Cantidad de ${item.name}`}>
+                            <button className="quantity-button focus-ring" type="button" aria-label={`Quitar una unidad de ${item.name}`} onClick={() => changeCartQuantity(item.id, -1)} data-testid={`button-remove-one-${item.id}`}><Minus size={14} /></button>
+                            <span className="quantity-value" data-testid={`text-quantity-${item.id}`}>{quantity}</span>
+                            <button className="quantity-button focus-ring" type="button" aria-label={`Añadir una unidad de ${item.name}`} onClick={() => changeCartQuantity(item.id, 1)} data-testid={`button-add-one-${item.id}`}><Plus size={14} /></button>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="cart-footer">
+                  {hasUnpricedItems && <p className="cart-partial-note" role="note" data-testid="text-cart-partial-total">El total es parcial: hay productos sin precio indicado en la carta.</p>}
+                  <div className="cart-total" data-testid="text-cart-total"><span>{hasUnpricedItems ? 'Subtotal parcial' : 'Subtotal'}</span><strong>{formatPrice(cartSubtotal)}</strong></div>
+                  <p className="cart-preview-note">Carrito de vista previa: no se envían pedidos ni se procesan pagos.</p>
+                  <button className="cart-clear focus-ring" type="button" onClick={() => setCart({})} data-testid="button-clear-cart">Vaciar carrito</button>
+                </div>
+              </>
+            )}
+          </aside>
+        </>
+      )}
     </div>
   );
 }
