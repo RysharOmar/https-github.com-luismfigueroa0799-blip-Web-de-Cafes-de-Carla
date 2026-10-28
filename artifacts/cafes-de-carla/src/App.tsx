@@ -6,26 +6,19 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
+import { menuCategories } from './data/menu';
 
 const queryClient = new QueryClient();
 const logo = '/cafes-de-carla-logo.jpg';
-
-const categories = [
-  { id: 'coffee', number: '01', title: 'Cafés de especialidad', note: 'Un buen café, preparado con calma.', image: '/sample-coffee.jpg', alt: 'Imagen de muestra: taza de café en una mesa con luz de mañana' },
-  { id: 'tea', number: '02', title: 'Tés e infusiones', note: 'Una pausa cálida, a tu manera.', image: null, alt: '' },
-  { id: 'pastry', number: '03', title: 'Repostería', note: 'Algo dulce para acompañar el momento.', image: '/sample-brunch.jpg', alt: 'Imagen de muestra: desayuno de cafetería sobre una mesa' },
-  { id: 'toast', number: '04', title: 'Tostadas', note: 'Una opción rica para cualquier hora.', image: '/sample-brunch.jpg', alt: 'Imagen de muestra: tostada y desayuno de cafetería' },
-  { id: 'specialties', number: '05', title: 'Tortitas y especialidades', note: 'Pequeños caprichos para disfrutar sin prisa.', image: '/sample-brunch.jpg', alt: 'Imagen de muestra: desayuno de cafetería con tortitas' },
-];
 
 function PreviewNote({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <span className={`preview-note ${className}`} data-testid="preview-disclosure">{children}</span>;
 }
 
 function Home() {
-  const [activeCategory, setActiveCategory] = useState('coffee');
+  const [activeCategory, setActiveCategory] = useState('featured');
   const [mobileOpen, setMobileOpen] = useState(false);
-  const selected = categories.find((category) => category.id === activeCategory) ?? categories[0];
+  const selected = menuCategories.find((category) => category.id === activeCategory) ?? menuCategories[0];
   const closeNav = () => setMobileOpen(false);
 
   return (
@@ -90,25 +83,50 @@ function Home() {
           <div className="section-kicker"><span className="eyebrow">02 / PARA DISFRUTAR</span><span className="kicker-line" /></div>
           <div className="menu-heading">
             <div><h2 id="menu-title" className="serif" data-testid="heading-menu">Algo rico,<br /><em>en buena compañía.</em></h2></div>
-            <p data-testid="text-menu-introduction">Explora lo que encontrarás en nuestra carta. Los productos concretos y sus detalles están pendientes de confirmación.</p>
+            <p data-testid="text-menu-introduction">La carta que nos has compartido ya está aquí, con sus productos, descripciones y precios. Los precios no indicados quedan pendientes de confirmar.</p>
           </div>
           <div className="menu-layout">
             <div className="category-list" role="tablist" aria-label="Categorías de la carta" data-testid="menu-category-tabs">
-              {categories.map((category) => (
+              {menuCategories.map((category, index) => (
                 <button key={category.id} type="button" role="tab" aria-selected={activeCategory === category.id} aria-controls="category-panel" className={`category-tab ${activeCategory === category.id ? 'active' : ''}`} onClick={() => setActiveCategory(category.id)} data-testid={`tab-category-${category.id}`}>
-                  <span className="category-number">{category.number}</span><span className="category-name">{category.title}</span><ArrowRight size={17} aria-hidden="true" />
+                  <span className="category-number">{String(index + 1).padStart(2, '0')}</span><span className="category-name">{category.title}</span><ArrowRight size={17} aria-hidden="true" />
                 </button>
               ))}
             </div>
-            <div className="category-panel" role="tabpanel" id="category-panel" aria-label={selected.title} data-testid={`panel-category-${selected.id}`}>
-              <div className="category-art">
-                {selected.image ? <img src={selected.image} alt={selected.alt} loading="lazy" width="960" height="720" data-testid={`img-category-${selected.id}`} /> : <div className="tea-placeholder" aria-label="Ilustración decorativa de una taza"><span className="tea-steam" /><span className="tea-cup" /></div>}
-                <span className="sample-flag">IMAGEN DE MUESTRA</span>
+            <section className="category-panel" role="tabpanel" id="category-panel" aria-labelledby={`tab-category-${selected.id}`} aria-label={selected.title} data-testid={`panel-category-${selected.id}`}>
+              <div className="category-panel-top">
+                {selected.image && (
+                  <div className="category-art">
+                    <img src={selected.image} alt={selected.alt} loading="lazy" width="960" height="720" data-testid={`img-category-${selected.id}`} />
+                    <span className="sample-flag">IMAGEN DE MUESTRA</span>
+                  </div>
+                )}
+                <div className="category-copy">
+                  <span className="eyebrow">EN LA CARTA</span>
+                  <h3 className="serif" data-testid={`heading-category-${selected.id}`}>{selected.title}</h3>
+                  <p>{selected.note}</p>
+                </div>
               </div>
-              <div className="category-copy"><span className="eyebrow">EN LA CARTA</span><h3 className="serif">{selected.title}</h3><p>{selected.note}</p><PreviewNote>Productos y detalles pendientes de confirmar.</PreviewNote></div>
-            </div>
+              {selected.items.length > 0 ? (
+                <ul className="menu-items" data-testid={`list-menu-${selected.id}`}>
+                  {selected.items.map((item) => (
+                    <li className="menu-item" key={item.id} data-testid={`item-menu-${item.id}`}>
+                      <div className="menu-item-copy">
+                        <h4>{item.name}</h4>
+                        {item.description && <p>{item.description}</p>}
+                      </div>
+                      <span className={`menu-item-price ${item.price ? '' : 'price-pending'}`} data-testid={`price-menu-${item.id}`}>
+                        {item.price ?? 'Precio por confirmar'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="menu-empty" data-testid={`empty-menu-${selected.id}`}>{selected.emptyMessage}</p>
+              )}
+            </section>
           </div>
-          <p className="menu-disclaimer" data-testid="text-menu-preview-disclosure">Las imágenes son ilustrativas y no representan el local ni productos confirmados. Se sustituirán por fotografías reales.</p>
+          <p className="menu-disclaimer" data-testid="text-menu-preview-disclosure">Precios transcritos de la carta compartida; los que no figuraban se muestran por confirmar. Las fotos son ilustrativas y se sustituirán por imágenes reales de los productos.</p>
         </section>
 
         <section className="pause-band" aria-label="Eslogan de Cafés de Carla">
