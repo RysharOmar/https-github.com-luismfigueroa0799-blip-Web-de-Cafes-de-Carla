@@ -158,52 +158,56 @@ function Home() {
             <div><h2 id="menu-title" className="serif" data-testid="heading-menu">Algo rico,<br /><em>en buena compañía.</em></h2></div>
             <p data-testid="text-menu-introduction">La carta que nos has compartido ya está aquí, con sus productos, descripciones y precios. Los precios no indicados quedan pendientes de confirmar.</p>
           </div>
-          <div className="menu-layout">
-            <div className="category-list" role="tablist" aria-label="Categorías de la carta" data-testid="menu-category-tabs">
+          <div className="category-list" role="tablist" aria-label="Categorías de la carta" data-testid="menu-category-tabs">
               {menuCategories.map((category, index) => (
                 <button key={category.id} type="button" role="tab" aria-selected={activeCategory === category.id} aria-controls="category-panel" className={`category-tab ${activeCategory === category.id ? 'active' : ''}`} onClick={() => setActiveCategory(category.id)} data-testid={`tab-category-${category.id}`}>
                   <span className="category-number">{String(index + 1).padStart(2, '0')}</span><span className="category-name">{category.title}</span><ArrowRight size={17} aria-hidden="true" />
                 </button>
               ))}
-            </div>
-            <section className="category-panel" role="tabpanel" id="category-panel" aria-labelledby={`tab-category-${selected.id}`} aria-label={selected.title} data-testid={`panel-category-${selected.id}`}>
-              <div className="category-panel-top">
-                {selected.image && (
-                  <div className="category-art">
-                    <img src={selected.image} alt={selected.alt} loading="lazy" width="960" height="720" data-testid={`img-category-${selected.id}`} />
-                    <span className="sample-flag">IMAGEN DE MUESTRA</span>
-                  </div>
-                )}
-                <div className="category-copy">
-                  <span className="eyebrow">EN LA CARTA</span>
-                  <h3 className="serif" data-testid={`heading-category-${selected.id}`}>{selected.title}</h3>
-                  <p>{selected.note}</p>
-                </div>
+          </div>
+          <section className="category-panel" role="tabpanel" id="category-panel" aria-labelledby={`tab-category-${selected.id}`} aria-label={selected.title} data-testid={`panel-category-${selected.id}`}>
+            <div className="category-copy">
+              <div>
+                <span className="eyebrow">EN LA CARTA</span>
+                <h3 className="serif" data-testid={`heading-category-${selected.id}`}>{selected.title}</h3>
               </div>
-              {selected.items.length > 0 ? (
-                <ul className="menu-items" data-testid={`list-menu-${selected.id}`}>
-                  {selected.items.map((item) => (
-                    <li className="menu-item" key={item.id} data-testid={`item-menu-${item.id}`}>
-                      <div className="menu-item-copy">
-                        <h4>{item.name}</h4>
-                        {item.description && <p>{item.description}</p>}
-                      </div>
-                      <div className="menu-item-actions">
-                        <span className={`menu-item-price ${item.price ? '' : 'price-pending'}`} data-testid={`price-menu-${item.id}`}>
+              <p>{selected.note}</p>
+            </div>
+            {selected.items.length > 0 ? (
+              <ul className="product-grid" data-testid={`list-menu-${selected.id}`}>
+                {selected.items.map((item) => (
+                  <li className="product-card" key={item.id} data-testid={`item-menu-${item.id}`}>
+                    <div className="product-photo">
+                      <img
+                        src={selected.image ?? '/sample-brunch.jpg'}
+                        alt={`Imagen de muestra; no es una fotografía real de ${item.name}`}
+                        loading="lazy"
+                        decoding="async"
+                        width="960"
+                        height="720"
+                        data-testid={`img-product-${item.id}`}
+                      />
+                      <span className="product-photo-label">IMAGEN DE MUESTRA</span>
+                    </div>
+                    <div className="product-card-content">
+                      <h4 data-testid={`name-menu-${item.id}`}>{item.name}</h4>
+                      <p data-testid={`description-menu-${item.id}`}>{item.description ?? 'Detalles por confirmar'}</p>
+                      <div className="product-card-footer">
+                        <span className={`product-card-price ${item.price ? '' : 'price-pending'}`} data-testid={`price-menu-${item.id}`}>
                           {item.price ?? 'Precio por confirmar'}
                         </span>
                         <button className="add-to-cart focus-ring" type="button" aria-label={`Añadir ${item.name} al carrito`} onClick={() => changeCartQuantity(item.id, 1)} data-testid={`button-add-menu-${item.id}`}>
-                          <Plus size={14} aria-hidden="true" /><span>Añadir</span>
+                          <Plus size={15} aria-hidden="true" /><span>Añadir</span>
                         </button>
                       </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="menu-empty" data-testid={`empty-menu-${selected.id}`}>{selected.emptyMessage}</p>
-              )}
-            </section>
-          </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="menu-empty" data-testid={`empty-menu-${selected.id}`}>{selected.emptyMessage}</p>
+            )}
+          </section>
           <p className="menu-disclaimer" data-testid="text-menu-preview-disclosure">Precios transcritos de la carta compartida; los que no figuraban se muestran por confirmar. Las fotos son ilustrativas y se sustituirán por imágenes reales de los productos.</p>
         </section>
 
