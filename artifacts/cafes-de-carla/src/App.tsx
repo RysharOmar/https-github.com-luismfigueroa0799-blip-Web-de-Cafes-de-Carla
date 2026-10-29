@@ -11,6 +11,30 @@ import { menuCategories } from './data/menu';
 const queryClient = new QueryClient();
 const logo = '/cafes-de-carla-logo.jpg';
 const menuItemsById = new Map(menuCategories.flatMap((category) => category.items).map((item) => [item.id, item] as const));
+const menuItemCategoryById = new Map(
+  menuCategories.flatMap((category) => category.items.map((item) => [item.id, category.id] as const)),
+);
+
+declare global {
+  interface Window {
+    dataLayer?: Array<Record<string, unknown>>;
+  }
+}
+
+function trackCartAdd(itemId: string, categoryId: string) {
+  if (typeof window === 'undefined' || !Array.isArray(window.dataLayer)) return;
+
+  try {
+    window.dataLayer.push({
+      event: 'add_to_cart',
+      ecommerce: {
+        items: [{ item_id: itemId, item_category: categoryId }],
+      },
+    });
+  } catch {
+    // Analytics must never interrupt the cart interaction.
+  }
+}
 
 function priceInCents(price?: string) {
   if (!price) return null;
@@ -79,6 +103,11 @@ function Home() {
   }, [cartOpen]);
 
   const changeCartQuantity = (itemId: string, adjustment: number) => {
+    if (adjustment > 0) {
+      const categoryId = menuItemCategoryById.get(itemId);
+      if (categoryId) trackCartAdd(itemId, categoryId);
+    }
+
     setCart((current) => {
       const next = { ...current };
       const quantity = (next[itemId] ?? 0) + adjustment;
