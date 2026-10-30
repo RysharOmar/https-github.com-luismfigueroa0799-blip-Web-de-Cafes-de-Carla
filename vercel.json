@@ -1,5 +1,9 @@
 {
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm -r build",
-  "outputDirectory": "artifacts/cafes-de-carla/dist/public"
+  "outputDirectory": "artifacts/cafes-de-carla/dist/public",
+  "routes": [
+    { "src": "/api/create-checkout-session", "dest": "/api/checkout.ts", "methods": ["POST"] },
+    { "src": "/api/webhook", "dest": "/api/webhook.ts", "methods": ["POST"] }
+  ]
 }

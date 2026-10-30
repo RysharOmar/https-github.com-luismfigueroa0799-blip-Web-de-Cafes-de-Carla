@@ -18,7 +18,9 @@ Configurarlas en Vercel > Settings > Environment Variables:
 - `DATABASE_URL` — cadena de conexión de Postgres (requerida por `@workspace/db` y el API server al arrancar)
 - `PORT` — puerto donde escucha el servidor (opcional, Vercel lo provee)
 - `STRIPE_SECRET_KEY` — clave secreta de Stripe (modo prueba: `sk_test_...`). Requerida por el backend para crear sesiones de checkout.
-- `STRIPE_WEBHOOK_SECRET` — secreto de firma de webhook de Stripe (`whsec_...`). Requerido para validar eventos de `/webhook`.
+- `STRIPE_WEBHOOK_SECRET` — secreto de firma de webhook de Stripe (`whsec_...`). Requerido para validar eventos de `/api/webhook`.
+- `N8N_WEBHOOK_URL` — URL del webhook de n8n a la que se notifican los pagos completados (solo runtime).
+- `APP_URL` — URL base de la aplicación (usada para `success_url` y `cancel_url` de Stripe Checkout).
 
 Validaciones de estas variables ocurren solo en runtime (arranque del servidor), nunca durante el build.
 

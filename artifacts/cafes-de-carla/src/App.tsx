@@ -74,9 +74,7 @@ function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items: cartLines.map(({ item, quantity }) => ({
-            name: item.name,
-            description: item.description,
-            priceCents: priceInCents(item.price) ?? 0,
+            id: item.id,
             quantity,
           })),
         }),
