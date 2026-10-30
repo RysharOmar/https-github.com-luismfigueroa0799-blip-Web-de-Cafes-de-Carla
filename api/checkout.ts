@@ -1,12 +1,15 @@
 /**
  * Función serverless de Vercel: POST /api/create-checkout-session
  * Crea una sesión de Stripe Checkout en modo de prueba y devuelve session.url.
- * No confía en precios enviados por el navegador: usa el catálogo del servidor.
+ * Los precios se resuelven en el servidor desde el catálogo, nunca del navegador.
+ * La clave de Stripe se lee únicamente de una constante de este módulo backend.
  */
 import Stripe from 'stripe';
 import { getCatalogItem, isSellable } from './catalog';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const STRIPE_SECRET_KEY = 'sk_test_51UVZfqRfNgxXGS18C15gKVOBsdMTrQl1ukO0gkgE9Q07Wc1ljxBO0LIuLAgNbRDYiuAvjnwBYSuxyOzPPuNCE7Bo00mV4LIR3d';
+
+const stripe = new Stripe(STRIPE_SECRET_KEY, {
   apiVersion: '2025-04-30.acacia',
 });
 
@@ -59,7 +62,7 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    const origin = process.env.APP_URL || (req.headers.origin as string) || 'http://localhost:5000';
+    const origin = (req.headers.origin as string) || '';
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],

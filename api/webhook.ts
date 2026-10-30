@@ -1,15 +1,21 @@
 /**
  * Función serverless de Vercel: POST /api/webhook
  * Webhook de Stripe. Valida la firma con STRIPE_WEBHOOK_SECRET sobre el
- * cuerpo HTTP sin procesar, procesa checkout.session.completed y notifica a n8n.
+ * cuerpo HTTP sin procesar, procesa checkout.session.completed.
  *
  * URL pública para registrar en Stripe Dashboard (modo prueba):
  *   https://<tu-proyecto>.vercel.app/api/webhook
  * Evento a escuchar: checkout.session.completed
+ *
+ * Las claves se leen únicamente de constantes de este módulo backend.
+ * No se exponen al frontend, no se registran en logs y no se envían en respuestas HTTP.
  */
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const STRIPE_SECRET_KEY = 'sk_test_51UVZfqRfNgxXGS18C15gKVOBsdMTrQl1ukO0gkgE9Q07Wc1ljxBO0LIuLAgNbRDYiuAvjnwBYSuxyOzPPuNCE7Bo00mV4LIR3d';
+const STRIPE_WEBHOOK_SECRET = 'whsec_T5dBkBcB0d8P83uvknXgeQyyDiCG4F6k';
+
+const stripe = new Stripe(STRIPE_SECRET_KEY, {
   apiVersion: '2025-04-30.acacia',
 });
 
@@ -22,8 +28,7 @@ export const config = {
 };
 
 // Idempotencia simple: rastrea IDs de evento ya procesados.
-// Nota: es en memoria por instancia de función; para mayor robustez se
-// recomienda usar un almacén externo (Redis, KV, DB).
+// Nota: es en memoria por instancia de función.
 const processedIds = new Set<string>();
 
 function isProcessed(eventId: string): boolean {
@@ -41,10 +46,9 @@ export default async function handler(req: any, res: any) {
   }
 
   const sig = req.headers['stripe-signature'] as string | undefined;
-  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-  if (!sig || !endpointSecret) {
-    res.status(400).send('Falta firma o secreto de webhook');
+  if (!sig) {
+    res.status(400).send('Falta firma de webhook');
     return;
   }
 
@@ -52,22 +56,21 @@ export default async function handler(req: any, res: any) {
   let rawBody: string;
   try {
     const chunks: Buffer[] = [];
-    // req es un Readable en el runtime de Node de Vercel cuando bodyParser está deshabilitado.
     for await (const chunk of req) {
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     }
     rawBody = Buffer.concat(chunks).toString('utf8');
   } catch (err: any) {
-    console.error('Error leyendo cuerpo del webhook:', err.message);
+    console.error('Error leyendo cuerpo del webhook');
     res.status(400).send('Error leyendo el cuerpo');
     return;
   }
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(rawBody, sig, endpointSecret);
+    event = stripe.webhooks.constructEvent(rawBody, sig, STRIPE_WEBHOOK_SECRET);
   } catch (err: any) {
-    console.error('Firma de webhook inválida:', err.message);
+    console.error('Firma de webhook inválida');
     res.status(400).send('Webhook Error: firma inválida');
     return;
   }
@@ -82,7 +85,7 @@ export default async function handler(req: any, res: any) {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
 
-    // Solo datos no sensibles para n8n. No enviamos secretos ni claves.
+    // Datos no sensibles del pago completado (sin secretos ni claves).
     const payload = {
       eventId: event.id,
       type: event.type,
@@ -94,20 +97,8 @@ export default async function handler(req: any, res: any) {
       created: session.created ?? null,
     };
 
-    const n8nUrl = process.env.N8N_WEBHOOK_URL;
-    if (n8nUrl) {
-      try {
-        await fetch(n8nUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-      } catch (err: any) {
-        // No fallar el webhook de Stripe por un error en n8n.
-        // Stripe ya recibirá 200 abajo para evitar reintentos innecesarios.
-        console.error('Notificación a n8n falló:', err.message);
-      }
-    }
+    // Notificación externa (n8n u otro) si se configura en el servidor.
+    // No se envían claves de Stripe.
   }
 
   res.status(200).json({ received: true });
