@@ -1,4 +1,8 @@
 {
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm -r build"
+  "buildCommand": "pnpm -r build",
+  "outputs": [
+    "artifacts/cafes-de-carla/dist/public",
+    "artifacts/mockup-sandbox/dist"
+  ]
 }
