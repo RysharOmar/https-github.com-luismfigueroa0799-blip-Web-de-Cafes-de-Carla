@@ -62,7 +62,38 @@ function Home() {
   const cartCount = cartLines.reduce((total, line) => total + line.quantity, 0);
   const cartSubtotal = cartLines.reduce((total, line) => total + (priceInCents(line.item.price) ?? 0) * line.quantity, 0);
   const hasUnpricedItems = cartLines.some((line) => priceInCents(line.item.price) === null);
+  const allPriced = !hasUnpricedItems && cartLines.length > 0;
   const closeNav = () => setMobileOpen(false);
+
+  const checkout = async () => {
+    if (!allPriced) return;
+
+    try {
+      const response = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: cartLines.map(({ item, quantity }) => ({
+            name: item.name,
+            description: item.description,
+            priceCents: priceInCents(item.price) ?? 0,
+            quantity,
+          })),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.url) {
+        throw new Error(data.error || "Error al crear la sesión de pago");
+      }
+
+      window.location.href = data.url;
+    } catch (err) {
+      console.error("Checkout error:", err);
+      alert("No se pudo preparar el pago. Inténtalo de nuevo.");
+    }
+  };
 
   useEffect(() => {
     if (!cartOpen) return;
@@ -330,9 +361,18 @@ function Home() {
                   {hasUnpricedItems && <p className="cart-partial-note" role="note" data-testid="text-cart-partial-total">El total es parcial: hay productos sin precio indicado en la carta.</p>}
                   <div className="cart-total" data-testid="text-cart-total"><span>{hasUnpricedItems ? 'Subtotal parcial' : 'Subtotal'}</span><strong>{formatPrice(cartSubtotal)}</strong></div>
                   <p className="cart-preview-note">Carrito de vista previa: no se envían pedidos ni se procesan pagos.</p>
+                  <button
+                    className="cart-checkout focus-ring"
+                    type="button"
+                    onClick={checkout}
+                    disabled={!allPriced}
+                    data-testid="button-checkout"
+                  >
+                    Pagar con Stripe
+                  </button>
                   <button className="cart-clear focus-ring" type="button" onClick={() => setCart({})} data-testid="button-clear-cart">Vaciar carrito</button>
                 </div>
-              </>
+              </> 
             )}
           </aside>
         </>
