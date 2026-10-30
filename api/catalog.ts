@@ -9,7 +9,7 @@
 export type CatalogItem = {
   name: string;
   priceCents: number;
-  currency: 'eur';
+  currency?: 'eur';
   description?: string;
 };
 

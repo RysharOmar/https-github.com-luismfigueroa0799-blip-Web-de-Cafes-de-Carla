@@ -4,7 +4,7 @@ import Stripe from "stripe";
 import { logger } from "../lib/logger";
 
 export const stripe = new Stripe(requiredEnv("STRIPE_SECRET_KEY"), {
-  apiVersion: "2025-04-30.acacia",
+  apiVersion: "2025-02-24.acacia",
 });
 
 export const stripeRouter: IRouter = Router();
@@ -73,7 +73,8 @@ export const stripeWebhookHandler = async (
     );
   } catch (err) {
     logger.warn({ err }, "Webhook signature verification failed");
-    res.status(400).send(`Webhook Error: ${err.message}`);
+    const message = err instanceof Error ? err.message : "Error desconocido";
+    res.status(400).send(`Webhook Error: ${message}`);
     return;
   }
 

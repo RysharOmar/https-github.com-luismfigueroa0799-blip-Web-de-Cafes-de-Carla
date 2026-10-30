@@ -51,7 +51,7 @@ export default async function handler(req: any, res: any) {
 
       line_items.push({
         price_data: {
-          currency: catalogItem.currency,
+          currency: catalogItem.currency ?? 'eur',
           product_data: {
             name: catalogItem.name,
             ...(catalogItem.description ? { description: catalogItem.description } : {}),
